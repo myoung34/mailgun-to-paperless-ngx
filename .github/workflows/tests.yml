@@ -1,0 +1,31 @@
+name: Test
+
+on:
+  push:
+    branches-ignore:
+      - 'main'
+      - 'refs/tags/*'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ '3.12' ]
+    steps:
+    - uses: actions/checkout@v1
+    - name: Setup python
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+        architecture: x64
+    - name: install pre-reqs
+      run: sudo apt-get update && pip install -r requirements-dev.txt
+    - name: isort
+      run: isort -c -rc --skip app/main/__init__.py app -sp .
+    - name: pylint
+      run: pylint -r n app
+    - name: set pythonpath
+      run: echo 'PYTHONPATH='$(pwd) >> $GITHUB_ENV
+    - name: pytest
+      run: py.test --cov-config .coveragerc --cov app --cov-report term-missing --cov-report xml --junitxml junit.xml tests

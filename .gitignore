@@ -1,0 +1,7 @@
+*.egg-info
+.tox
+__pycache__
+*.xml
+.coverage
+*.sw[o-p]
+.idea

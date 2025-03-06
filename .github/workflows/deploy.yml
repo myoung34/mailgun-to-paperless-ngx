@@ -1,0 +1,60 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ '3.12' ]
+    steps:
+    - uses: actions/checkout@v1
+    - name: Setup python
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+        architecture: x64
+    - name: install pre-reqs
+      run: sudo apt-get update && pip install -r requirements-dev.txt
+    - name: isort
+      run: isort -c -rc --skip app/main/__init__.py app -sp .
+    - name: pylint
+      run: pylint -r n app
+    - name: set pythonpath
+      run: echo 'PYTHONPATH='$(pwd) >> $GITHUB_ENV
+    - name: pytest
+      run: py.test --cov-config .coveragerc --cov app --cov-report term-missing --cov-report xml --junitxml junit.xml tests
+  latest_deploy:
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+    - name: Copy Repo Files
+      uses: actions/checkout@v2
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: crazy-max/ghaction-docker-buildx@v1
+      with:
+        buildx-version: latest
+    - name: Available platforms
+      run: echo ${{ steps.buildx.outputs.platforms }}
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Build and push
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: Dockerfile
+        pull: true
+        push: true
+        tags: ghcr.io/${{ github.repository }}:latest
+        platforms: linux/amd64,linux/arm64
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
