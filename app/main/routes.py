@@ -14,8 +14,11 @@ def main_route():
     """ Main route """
     api_key = request.headers.get('Authorization', request.args.get('api_key'))
     if api_key == f'Bearer {os.environ.get("API_KEY", '')}' or api_key == os.environ.get('API_KEY', ''): # pylint:disable=line-too-long
+        print(f'api key is good. content type is {request.headers.get("Content-Type")}', flush=True)
         if request.headers.get('Content-Type') != 'application/json':
+            print(request.files, flush=True)
             for key in request.files:
+                print(f'key: {key}', flush=True)
                 if request.files[key].mimetype not in ['application/pdf', 'image/jpeg']:
                     return jsonify({"error": f"invalid content type: {request.files[key].mimetype}"}), 400 # pylint:disable=line-too-long
 
