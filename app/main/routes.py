@@ -1,6 +1,7 @@
 """ all routes will end up here or loaded here for flask """
 # pylint:disable=cyclic-import
 import os
+import random
 from time import sleep
 
 import requests
@@ -8,6 +9,10 @@ from flask import jsonify, request
 
 from app.main import BP as blueprint
 
+
+def random_color():
+    """ Generate a random color """
+    return "#{:06x}".format(random.randint(0, 0xFFFFFF)) # pylint:disable=consider-using-f-string
 
 @blueprint.route('/', methods=['POST'])
 def main_route():
@@ -32,7 +37,38 @@ def main_route():
                     headers={"Authorization": f'Token {os.environ.get("PAPERLESS_API_KEY")}'},
                     timeout=10,
                 ).json()
-                tag_ids = [tag["id"] for tag in tags_resp["results"] if tag["name"] in tag_names] # pylint:disable=line-too-long
+
+                # loop through tag_names and get the tag id if they match
+                # if they dont match create the tag and get the id
+                tag_ids = []
+                for tag in tags_resp["results"]:
+                    if tag["name"] in tag_names:
+                        tag_ids.append(tag["id"])
+                    else:
+                        tag_resp = requests.post(
+                            f'{os.environ.get("PAPERLESS_URL")}/api/tags/',
+                            data={
+                                "name": "asdf",
+                                "color": random_color(),
+                                "is_inbox_tag": False,
+                                "matching_algorithm": 0,
+                                "match": "",
+                                "is_insensitive": True,
+                                "set_permissions": {
+                                    "view": {
+                                        "users": [],
+                                        "groups": []
+                                    },
+                                    "change": {
+                                        "users": [],
+                                        "groups": []
+                                    }
+                                }
+                            },
+                            headers={"Authorization": f'Token {os.environ.get("PAPERLESS_API_KEY")}'}, # pylint:disable=line-too-long
+                            timeout=10,
+                        )
+                        tag_ids.append(tag_resp.json()["id"])
 
                 print(f'Uploading {attachment.filename} to {os.environ.get("PAPERLESS_URL")} with tags {tag_ids}', flush=True) # pylint:disable=line-too-long
                 resp = requests.post(
